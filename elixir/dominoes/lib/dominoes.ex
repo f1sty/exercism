@@ -9,52 +9,49 @@ defmodule Dominoes do
   def chain?([]), do: true
 
   def chain?(dominoes) do
-    len = length(dominoes)
-
     dominoes
-    |> Enum.map(&chain?(List.delete(dominoes, &1), [&1], len))
+    |> Enum.map(&chain?(&1, List.delete(dominoes, &1)))
     |> Enum.any?()
   end
 
-  def chain?([], chain, len) do
-    {first, last} = edges(chain)
+  def chain?({edge, edge}, []), do: true
 
-    first == last and length(chain) == len
-  end
-
-  def chain?([{left, right} = domino], chain, _len) do
-    {edge1, edge2} = edges(chain)
-
-    cond do
-      edge1 == right -> [domino | chain]
-      edge2 == left -> chain ++ [domino]
-      true -> chain
+  def chain?(edges, pile) do
+    with update_instructions <- maybe_find_matching_domino(pile, edges),
+         {edges, pile} <- maybe_update_edges(update_instructions) do
+      chain?(edges, pile)
     end
   end
 
-  def chain?(left_dominoes, chain, len) do
-    {edge1, edge2} = edges(chain)
-    {{left, right} = domino, rest} = List.pop_at(left_dominoes, 0)
-
-    {left_dominoes, chain} =
+  defp maybe_find_matching_domino(pile, {first, last} = edges) do
+    pile
+    |> Enum.with_index()
+    |> Enum.reduce(:none, fn {{edge1, edge2} = domino, idx}, update_instructions ->
       cond do
-        edge1 == right -> {rest, [domino | chain]}
-        edge2 == left -> {rest, chain ++ [domino]}
-        true -> {rest ++ [domino], chain}
+        first == edge2 -> {:prepend, domino, edges, pile, idx}
+        last == edge1 -> {:append, domino, edges, pile, idx}
+        first == edge1 -> {:prepend, rotate(domino), edges, pile, idx}
+        last == edge2 -> {:append, rotate(domino), edges, pile, idx}
+        true -> update_instructions
       end
-
-    dbg(left_dominoes)
-    dbg(chain)
-    Process.sleep(1000)
-    chain?(left_dominoes, chain, len)
+    end)
   end
 
-  defp edges([{a, b}]), do: {a, b}
+  defp maybe_update_edges(:none), do: false
 
-  defp edges(chain) do
-    {a, _} = List.first(chain)
-    {_, b} = List.last(chain)
+  defp maybe_update_edges({:prepend, {first, _}, {_, last}, pile, idx}) do
+    edges = {first, last}
+    pile = List.delete_at(pile, idx)
 
-    {a, b}
+    {edges, pile}
   end
+
+  defp maybe_update_edges({:append, {_, last}, {first, _}, pile, idx}) do
+    edges = {first, last}
+    pile = List.delete_at(pile, idx)
+
+    {edges, pile}
+  end
+
+  defp rotate({first, last}), do: {last, first}
 end
