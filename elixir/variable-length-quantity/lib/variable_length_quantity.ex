@@ -32,9 +32,8 @@ defmodule VariableLengthQuantity do
   defp decode(<<>>, [], integers), do: {:ok, Enum.reverse(integers)}
   defp decode(<<>>, _carry, _integers), do: {:error, "incomplete sequence"}
 
-  defp decode(<<0::1, bits::7, _bytes::bytes>>, _carry, _integers) when bits > 127 do
-    {:error, "incomplete sequence"}
-  end
+  defp decode(<<0::1, bits::7, _bytes::bytes>>, _carry, _integers) when bits > 127,
+    do: {:error, "incomplete sequence"}
 
   defp decode(<<0::1, bits::7, bytes::bytes>>, carry, integers) do
     integer =
@@ -46,17 +45,8 @@ defmodule VariableLengthQuantity do
     decode(bytes, [], [integer | integers])
   end
 
-  defp decode(<<1::1, bits::7, bytes::bytes>>, carry, integers) do
-    carry = [bits | carry]
+  defp decode(<<1::1, bits::7, bytes::bytes>>, carry, integers),
+    do: decode(bytes, [bits | carry], integers)
 
-    decode(bytes, carry, integers)
-  end
-
-  defp count_octets(number) do
-    number
-    |> :math.log2()
-    |> floor()
-    |> div(7)
-    |> Kernel.+(1)
-  end
+  defp count_octets(number), do: number |> :math.log2() |> floor() |> div(7) |> Kernel.+(1)
 end
