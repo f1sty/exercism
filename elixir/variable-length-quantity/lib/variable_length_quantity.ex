@@ -5,48 +5,38 @@ defmodule VariableLengthQuantity do
   import Bitwise
 
   @spec encode(integers :: [integer]) :: binary
-  def encode(integers) do
-    encode(integers, <<>>)
-  end
+  def encode(integers), do: encode(integers, <<>>)
 
   defp encode([], encoded), do: encoded
-
-  defp encode([0 | integers], encoded), do: encode(integers, <<encoded::bitstring, 0::8>>)
+  defp encode([0 | integers], encoded), do: encode(integers, <<encoded::bytes, 0>>)
 
   defp encode([number | integers], encoded) do
-    octets_qty = count_octets(number)
-    number = <<number::size(octets_qty * 7)>>
+    number_bit_size = count_octets(number) * 7
 
-    new_encoded =
-      for <<part::7 <- number>>, into: <<>> do
-        <<1::1, part::7>>
-      end
-      |> reset_lsb_bit()
+    <<init::bits-size(number_bit_size - 7), last::bits-size(7)>> =
+      <<number::size(number_bit_size)>>
 
-    encode(integers, <<encoded::bitstring, new_encoded::bitstring>>)
+    new =
+      <<for(<<part::7 <- init>>, into: <<>>, do: <<1::1, part::7>>)::bits, 0::1,
+        last::bits-size(7)>>
+
+    encode(integers, <<encoded::bytes, new::bytes>>)
   end
 
   @doc """
   Decode a bitstring of VLQ encoded bytes into a series of integers
   """
   @spec decode(bytes :: binary) :: {:ok, [integer]} | {:error, String.t()}
-  def decode(bytes) do
-    decode(bytes, [], [])
-  end
+  def decode(bytes), do: decode(bytes, [], [])
 
-  defp decode(<<>>, [], integers) do
-    {:ok, Enum.reverse(integers)}
-  end
+  defp decode(<<>>, [], integers), do: {:ok, Enum.reverse(integers)}
+  defp decode(<<>>, _carry, _integers), do: {:error, "incomplete sequence"}
 
-  defp decode(<<>>, _carry, _integers) do
+  defp decode(<<0::1, bits::7, _bytes::bytes>>, _carry, _integers) when bits > 127 do
     {:error, "incomplete sequence"}
   end
 
-  defp decode(<<0::1, bits::7, _bytes::bitstring>>, _carry, _integers) when bits > 127 do
-    {:error, "incomplete sequence"}
-  end
-
-  defp decode(<<0::1, bits::7, bytes::bitstring>>, carry, integers) do
+  defp decode(<<0::1, bits::7, bytes::bytes>>, carry, integers) do
     integer =
       carry
       |> Enum.with_index(1)
@@ -56,7 +46,7 @@ defmodule VariableLengthQuantity do
     decode(bytes, [], [integer | integers])
   end
 
-  defp decode(<<1::1, bits::7, bytes::bitstring>>, carry, integers) do
+  defp decode(<<1::1, bits::7, bytes::bytes>>, carry, integers) do
     carry = [bits | carry]
 
     decode(bytes, carry, integers)
@@ -68,12 +58,5 @@ defmodule VariableLengthQuantity do
     |> floor()
     |> div(7)
     |> Kernel.+(1)
-  end
-
-  defp reset_lsb_bit(almost_vlq) do
-    init = :binary.part(almost_vlq, {0, byte_size(almost_vlq) - 1})
-    <<_::1, last::7>> = :binary.part(almost_vlq, {byte_size(almost_vlq), -1})
-
-    <<init::bitstring, 0::1, last::7>>
   end
 end
