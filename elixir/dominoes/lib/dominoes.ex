@@ -14,9 +14,9 @@ defmodule Dominoes do
     |> Enum.any?()
   end
 
-  def chain?({edge, edge}, []), do: true
+  defp chain?({edge, edge}, []), do: true
 
-  def chain?(edges, pile) do
+  defp chain?(edges, pile) do
     with update_instructions <- maybe_find_matching_domino(pile, edges),
          {edges, pile} <- maybe_update_edges(update_instructions) do
       chain?(edges, pile)
