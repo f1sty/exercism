@@ -1,31 +1,27 @@
 pub fn brackets_are_balanced(string: &str) -> bool {
-    let mut unclosed: Vec<char> = vec![];
+    let mut brackets: Vec<char> = vec![];
 
-    string.chars().for_each(|chr| match chr {
-        '[' | '(' | '{' => unclosed.push(chr),
-        ']' => {
-            if let Some(new_unclosed) = unclosed.strip_suffix(&['[']) {
-                unclosed = new_unclosed.to_vec();
-            } else {
-                unclosed.push(']');
+    for chr in string.chars() {
+        match chr {
+            '[' | '(' | '{' => brackets.push(chr),
+            ']' => {
+                if brackets.pop() != Some('[') {
+                    return false;
+                }
             }
-        }
-        ')' => {
-            if let Some(new_unclosed) = unclosed.strip_suffix(&['(']) {
-                unclosed = new_unclosed.to_vec();
-            } else {
-                unclosed.push(')');
+            ')' => {
+                if brackets.pop() != Some('(') {
+                    return false;
+                }
             }
-        }
-        '}' => {
-            if let Some(new_unclosed) = unclosed.strip_suffix(&['{']) {
-                unclosed = new_unclosed.to_vec();
-            } else {
-                unclosed.push('}');
+            '}' => {
+                if brackets.pop() != Some('{') {
+                    return false;
+                }
             }
+            _ => (),
         }
-        _ => (),
-    });
+    }
 
-    unclosed.is_empty()
+    brackets.is_empty()
 }
